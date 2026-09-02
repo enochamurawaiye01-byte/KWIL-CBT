@@ -1,0 +1,321 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ========================================
+// ENUMS
+// ========================================
+
+enum UserRole {
+  STUDENT
+  ADMIN
+}
+
+enum EnrollmentStatus {
+  ACTIVE
+  COMPLETED
+  SUSPENDED
+  WITHDRAWN
+}
+
+enum ExamStatus {
+  DRAFT
+  PUBLISHED
+  CLOSED
+  ARCHIVED
+}
+
+enum ExamSessionStatus {
+  IN_PROGRESS
+  SUBMITTED
+  EXPIRED
+}
+
+enum ResultStatus {
+  PASS
+  FAIL
+}
+
+enum QuestionType {
+  MULTIPLE_CHOICE
+}
+
+// ========================================
+// USER
+// ========================================
+
+model User {
+  id           String   @id @default(uuid())
+  email        String?  @unique
+  phone        String?  @unique
+  passwordHash String
+  role         UserRole @default(STUDENT)
+  isActive     Boolean  @default(true)
+
+  student Student?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([role])
+}
+
+// ========================================
+// STUDENT
+// ========================================
+
+model Student {
+  id                 String  @id @default(uuid())
+  userId             String  @unique
+  registrationNumber String  @unique
+  fullName           String
+  phoneNumber        String
+  profileImage       String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  enrollments  Enrollment[]
+  examSessions ExamSession[]
+  results      Result[]
+  transcripts  Transcript[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([fullName])
+  @@index([phoneNumber])
+}
+
+// ========================================
+// COURSE
+// ========================================
+
+model Course {
+  id          String  @id @default(uuid())
+  name        String
+  code        String  @unique
+  description String?
+  duration    Int?
+  isActive    Boolean @default(true)
+
+  enrollments Enrollment[]
+  exams       Exam[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([name])
+}
+
+// ========================================
+// ENROLLMENT
+// ========================================
+
+model Enrollment {
+  id          String           @id @default(uuid())
+  studentId   String
+  courseId    String
+  status      EnrollmentStatus @default(ACTIVE)
+  enrolledAt  DateTime         @default(now())
+  completedAt DateTime?
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  course  Course  @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, courseId])
+  @@index([studentId])
+  @@index([courseId])
+}
+
+// ========================================
+// EXAM
+// ========================================
+
+model Exam {
+  id          String     @id @default(uuid())
+  courseId    String
+  title       String
+  description String?
+  duration    Int
+  totalMarks  Int
+  passMark    Int
+  status      ExamStatus @default(DRAFT)
+
+  startTime DateTime?
+  endTime   DateTime?
+
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  questions Question[]
+  sessions  ExamSession[]
+  results   Result[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([courseId])
+  @@index([status])
+}
+
+// ========================================
+// QUESTION
+// ========================================
+
+model Question {
+  id           String       @id @default(uuid())
+  examId       String
+  questionText String
+  marks        Int          @default(1)
+  type         QuestionType @default(MULTIPLE_CHOICE)
+  order        Int
+
+  exam    Exam         @relation(fields: [examId], references: [id], onDelete: Cascade)
+  options Option[]
+  answers ExamAnswer[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([examId, order])
+  @@index([examId])
+}
+
+// ========================================
+// OPTION
+// ========================================
+
+model Option {
+  id         String  @id @default(uuid())
+  questionId String
+  text       String
+  isCorrect  Boolean @default(false)
+  order      Int
+
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  selectedBy ExamAnswer[]
+
+  createdAt DateTime @default(now())
+
+  @@unique([questionId, order])
+  @@index([questionId])
+}
+
+// ========================================
+// EXAM SESSION
+// ========================================
+
+model ExamSession {
+  id        String @id @default(uuid())
+  examId    String
+  studentId String
+
+  startedAt   DateTime  @default(now())
+  expiresAt   DateTime
+  submittedAt DateTime?
+
+  status ExamSessionStatus @default(IN_PROGRESS)
+
+  score      Int?
+  percentage Float?
+  grade      String?
+
+  exam    Exam    @relation(fields: [examId], references: [id], onDelete: Cascade)
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  answers ExamAnswer[]
+  result  Result?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([examId, studentId])
+  @@index([examId])
+  @@index([studentId])
+  @@index([status])
+}
+
+// ========================================
+// EXAM ANSWER
+// ========================================
+
+model ExamAnswer {
+  id               String   @id @default(uuid())
+  sessionId        String
+  questionId       String
+  selectedOptionId String?
+  answeredAt       DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  session        ExamSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  question       Question    @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  selectedOption Option?     @relation(fields: [selectedOptionId], references: [id], onDelete: SetNull)
+
+  @@unique([sessionId, questionId])
+  @@index([sessionId])
+  @@index([questionId])
+}
+
+// ========================================
+// RESULT
+// ========================================
+
+model Result {
+  id        String @id @default(uuid())
+  sessionId String @unique
+  studentId String
+  examId    String
+
+  totalQuestions    Int
+  answeredQuestions Int
+  correctAnswers    Int
+
+  score      Int
+  totalMarks Int
+  percentage Float
+  grade      String
+  status     ResultStatus
+
+  submittedAt DateTime @default(now())
+
+  session ExamSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  student Student     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  exam    Exam        @relation(fields: [examId], references: [id], onDelete: Cascade)
+
+  transcript Transcript?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([studentId])
+  @@index([examId])
+  @@index([status])
+  @@index([percentage])
+}
+
+// ========================================
+// TRANSCRIPT
+// ========================================
+
+model Transcript {
+  id        String @id @default(uuid())
+  studentId String
+  resultId  String @unique
+
+  fileUrl  String
+  fileName String
+
+  generatedAt DateTime @default(now())
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  result  Result  @relation(fields: [resultId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([studentId])
+}
