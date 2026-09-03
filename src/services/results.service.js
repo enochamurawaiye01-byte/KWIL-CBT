@@ -20,20 +20,26 @@ const refreshStoredGrades = async () => {
 
   if (!updates.length) return;
 
-  await prisma.$transaction([
-    ...updates.map((result) =>
-      prisma.result.update({
-        where: { id: result.id },
-        data: { grade: result.currentGrade },
-      })
-    ),
-    ...updates.map((result) =>
-      prisma.examSession.update({
-        where: { id: result.sessionId },
-        data: { grade: result.currentGrade },
-      })
-    ),
-  ]);
+  const grades = [...new Set(updates.map((result) => result.currentGrade))];
+
+  await Promise.all(
+    grades.flatMap((grade) => {
+      const gradeUpdates = updates.filter((result) => result.currentGrade === grade);
+      const resultIds = gradeUpdates.map((result) => result.id);
+      const sessionIds = gradeUpdates.map((result) => result.sessionId);
+
+      return [
+        prisma.result.updateMany({
+          where: { id: { in: resultIds } },
+          data: { grade },
+        }),
+        prisma.examSession.updateMany({
+          where: { id: { in: sessionIds } },
+          data: { grade },
+        }),
+      ];
+    })
+  );
 };
 
 const getAllResults = async (filters = {}) => {
