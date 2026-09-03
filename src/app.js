@@ -1,7 +1,6 @@
 const express = require("express");
 const cors = require("cors");
 const helmet = require("helmet");
-const rateLimit = require("express-rate-limit");
 const path = require("path");
 const authRoutes = require("./routes/auth.route");
 const courseRoutes = require("./routes/courses.route");
@@ -29,17 +28,7 @@ app.use(
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 200,
-  message: {
-    success: false,
-    message: "Too many requests. Please try again later.",
-  },
-});
 
-app.use("/api", limiter);
 
 // Health check
 app.get("/api/health", (req, res) => {
