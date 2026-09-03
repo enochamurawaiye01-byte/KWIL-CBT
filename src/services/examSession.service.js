@@ -700,4 +700,5 @@ module.exports = {
   getExamQuestions,
   saveAnswer,
   submitExam,
+  calculateGrade,
 };

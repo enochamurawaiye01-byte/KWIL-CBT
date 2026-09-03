@@ -1,4 +1,40 @@
 const prisma = require("../config/database");
+const { calculateGrade } = require("./examSession.service");
+
+const refreshStoredGrades = async () => {
+  const results = await prisma.result.findMany({
+    select: {
+      id: true,
+      sessionId: true,
+      percentage: true,
+      grade: true,
+    },
+  });
+
+  const updates = results
+    .map((result) => ({
+      ...result,
+      currentGrade: calculateGrade(result.percentage),
+    }))
+    .filter((result) => result.grade !== result.currentGrade);
+
+  if (!updates.length) return;
+
+  await prisma.$transaction([
+    ...updates.map((result) =>
+      prisma.result.update({
+        where: { id: result.id },
+        data: { grade: result.currentGrade },
+      })
+    ),
+    ...updates.map((result) =>
+      prisma.examSession.update({
+        where: { id: result.sessionId },
+        data: { grade: result.currentGrade },
+      })
+    ),
+  ]);
+};
 
 const getAllResults = async (filters = {}) => {
   const {
@@ -51,6 +87,8 @@ const getAllResults = async (filters = {}) => {
     };
   }
 
+  await refreshStoredGrades();
+
   const results = await prisma.result.findMany({
     where,
 
@@ -99,6 +137,8 @@ const getAllResults = async (filters = {}) => {
   return results;
 };
 const getResultById = async (resultId) => {
+  await refreshStoredGrades();
+
   const result = await prisma.result.findUnique({
     where: {
       id: resultId,
@@ -162,6 +202,8 @@ const getResultById = async (resultId) => {
 };
 
 const getStudentResults = async (studentId) => {
+  await refreshStoredGrades();
+
   const student = await prisma.student.findUnique({
     where: {
       id: studentId,
