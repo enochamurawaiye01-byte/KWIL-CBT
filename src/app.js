@@ -10,6 +10,7 @@ const questionRoutes = require("./routes/question.route");
 const examSessionRoutes = require("./routes/examSession.route");
 const resultRoutes = require("./routes/result.route");
 const transcriptRoutes = require("./routes/transcript.route");
+const adminRoutes = require("./routes/admin.route");
 
 const app = express();
 
@@ -47,6 +48,7 @@ app.use("/api/questions", questionRoutes);
 app.use("/api/exam-sessions", examSessionRoutes);
 app.use("/api/admin/results", resultRoutes);
 app.use("/api/admin/transcripts", transcriptRoutes);
+app.use("/api/admin", adminRoutes);
 app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 // 404 handler
 app.use((req, res) => {
