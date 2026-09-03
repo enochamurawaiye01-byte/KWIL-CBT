@@ -671,23 +671,23 @@ const submitExam = async (studentId, sessionId) => {
 };
 
 const calculateGrade = (percentage) => {
-  if (percentage >= 80) {
+  if (percentage >= 70) {
     return "A";
   }
 
-  if (percentage >= 70) {
+  if (percentage >= 60) {
     return "B";
   }
 
-  if (percentage >= 60) {
+  if (percentage >= 50) {
     return "C";
   }
 
-  if (percentage >= 50) {
+  if (percentage >= 45) {
     return "D";
   }
 
-  if (percentage >= 45) {
+  if (percentage >= 40) {
     return "E";
   }
 
