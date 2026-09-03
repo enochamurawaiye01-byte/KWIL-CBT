@@ -1,6 +1,19 @@
 const transcriptService = require("../services/transcript.service");
 
-const generateTranscript = async (req, res) => {
+const listTranscripts = async (req, res, next) => {
+  try {
+    const transcripts = await transcriptService.listTranscripts(req.query.search);
+
+    return res.status(200).json({
+      success: true,
+      data: transcripts,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const generateTranscript = async (req, res, next) => {
   try {
     const { resultId } = req.params;
 
@@ -13,15 +26,21 @@ const generateTranscript = async (req, res) => {
       data: transcript,
     });
   } catch (error) {
-    console.error("Generate transcript error:", error);
+    next(error);
+  }
+};
 
-    return res.status(400).json({
-      success: false,
-      message: error.message,
-    });
+const downloadTranscript = async (req, res, next) => {
+  try {
+    const transcript = await transcriptService.getTranscriptFile(req.params.transcriptId);
+    return res.download(transcript.filePath, transcript.fileName);
+  } catch (error) {
+    next(error);
   }
 };
 
 module.exports = {
+  listTranscripts,
   generateTranscript,
+  downloadTranscript,
 };

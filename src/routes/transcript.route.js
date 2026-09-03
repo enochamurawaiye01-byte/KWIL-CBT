@@ -1,6 +1,10 @@
 const express = require("express");
 
-const {generateTranscript} = require("../controllers/transcript.controllers");
+const {
+  listTranscripts,
+  generateTranscript,
+  downloadTranscript,
+} = require("../controllers/transcript.controllers");
 
 const 
   authenticate
@@ -15,6 +19,10 @@ const router = express.Router();
 // Everything in this router requires ADMIN
 router.use(authenticate);
 router.use(authorize("ADMIN"));
+
+router.get("/", listTranscripts);
+
+router.get("/:transcriptId/download", downloadTranscript);
 
 router.post(
   "/:resultId/generate",

@@ -4,6 +4,65 @@ const PDFDocument = require("pdfkit");
 
 const prisma = require("../config/database");
 
+const listTranscripts = async (search) => {
+  const normalizedSearch = typeof search === "string" ? search.trim() : "";
+  const where = normalizedSearch
+    ? {
+        OR: [
+          { student: { fullName: { contains: normalizedSearch, mode: "insensitive" } } },
+          { student: { registrationNumber: { contains: normalizedSearch, mode: "insensitive" } } },
+          { result: { exam: { title: { contains: normalizedSearch, mode: "insensitive" } } } },
+        ],
+      }
+    : undefined;
+
+  return prisma.result.findMany({
+    where,
+    select: {
+      id: true,
+      score: true,
+      percentage: true,
+      grade: true,
+      status: true,
+      submittedAt: true,
+      student: {
+        select: {
+          fullName: true,
+          registrationNumber: true,
+        },
+      },
+      exam: {
+        select: {
+          title: true,
+          course: { select: { name: true } },
+        },
+      },
+      transcript: {
+        select: {
+          id: true,
+          fileName: true,
+          generatedAt: true,
+        },
+      },
+    },
+    orderBy: { submittedAt: "desc" },
+  });
+};
+
+const getTranscriptFile = async (transcriptId) => {
+  const transcript = await prisma.transcript.findUnique({
+    where: { id: transcriptId },
+    select: { fileName: true },
+  });
+
+  if (!transcript) throw new Error("Transcript not found");
+
+  const filePath = path.join(process.cwd(), "uploads", "transcripts", transcript.fileName);
+  if (!fs.existsSync(filePath)) throw new Error("Transcript file not found");
+
+  return { ...transcript, filePath };
+};
+
 const generateTranscript = async (resultId) => {
   // Get result and all required information
   const result = await prisma.result.findUnique({
@@ -206,5 +265,7 @@ const generateTranscript = async (resultId) => {
 };
 
 module.exports = {
+  listTranscripts,
+  getTranscriptFile,
   generateTranscript,
 };
