@@ -706,4 +706,5 @@ module.exports = {
   saveAnswer,
   submitExam,
   calculateGrade,
+  getSessionQuestions,
 };

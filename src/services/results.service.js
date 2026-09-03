@@ -1,48 +1,123 @@
 const prisma = require("../config/database");
-const { calculateGrade } = require("./examSession.service");
+const {
+  calculateGrade,
+  getSessionQuestions,
+} = require("./examSession.service");
+
+const EXAM_MARKS = 70;
+const ATTENDANCE_MARKS = 30;
+const TOTAL_MARKS = EXAM_MARKS + ATTENDANCE_MARKS;
+
+const calculateHistoricalResult = (result) => {
+  const questions = getSessionQuestions(result.session.exam.questions, result.sessionId);
+  const answers = new Map(
+    result.session.answers.map((answer) => [answer.questionId, answer.selectedOptionId])
+  );
+
+  let rawScore = 0;
+  let answeredQuestions = 0;
+  let correctAnswers = 0;
+
+  for (const question of questions) {
+    const selectedOptionId = answers.get(question.id);
+    if (!selectedOptionId) continue;
+
+    answeredQuestions++;
+    const selectedOption = question.options.find((option) => option.id === selectedOptionId);
+    if (selectedOption?.isCorrect) {
+      correctAnswers++;
+      rawScore += question.marks;
+    }
+  }
+
+  const rawTotalMarks = questions.reduce((total, question) => total + question.marks, 0);
+  const questionPercentage = rawTotalMarks > 0 ? rawScore / rawTotalMarks : 0;
+  const score = Math.round(ATTENDANCE_MARKS + questionPercentage * EXAM_MARKS);
+  const percentage = Number(((score / TOTAL_MARKS) * 100).toFixed(2));
+  const grade = calculateGrade(percentage);
+  const status = score >= result.session.exam.passMark ? "PASS" : "FAIL";
+
+  return {
+    totalQuestions: questions.length,
+    answeredQuestions,
+    correctAnswers,
+    score,
+    totalMarks: TOTAL_MARKS,
+    percentage,
+    grade,
+    status,
+  };
+};
 
 const refreshStoredGrades = async () => {
   const results = await prisma.result.findMany({
     select: {
       id: true,
       sessionId: true,
-      percentage: true,
-      grade: true,
+      session: {
+        select: {
+          exam: {
+            select: {
+              passMark: true,
+              questions: {
+                select: {
+                  id: true,
+                  marks: true,
+                  options: {
+                    select: {
+                      id: true,
+                      isCorrect: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
+          answers: {
+            select: {
+              questionId: true,
+              selectedOptionId: true,
+            },
+          },
+        },
+      },
     },
   });
 
-  const updates = results
-    .map((result) => ({
-      ...result,
-      currentGrade: calculateGrade(result.percentage),
-    }))
-    .filter((result) => result.grade !== result.currentGrade);
+  const updates = results.map((result) => ({
+    id: result.id,
+    sessionId: result.sessionId,
+    data: calculateHistoricalResult(result),
+  }));
 
   if (!updates.length) return;
 
-  const grades = [...new Set(updates.map((result) => result.currentGrade))];
+  await Promise.all(
+    updates.map((update) =>
+      prisma.result.update({
+        where: { id: update.id },
+        data: update.data,
+      })
+    )
+  );
 
   await Promise.all(
-    grades.flatMap((grade) => {
-      const gradeUpdates = updates.filter((result) => result.currentGrade === grade);
-      const resultIds = gradeUpdates.map((result) => result.id);
-      const sessionIds = gradeUpdates.map((result) => result.sessionId);
-
-      return [
-        prisma.result.updateMany({
-          where: { id: { in: resultIds } },
-          data: { grade },
-        }),
-        prisma.examSession.updateMany({
-          where: { id: { in: sessionIds } },
-          data: { grade },
-        }),
-      ];
-    })
+    updates.map((update) =>
+      prisma.examSession.update({
+        where: { id: update.sessionId },
+        data: {
+          score: update.data.score,
+          percentage: update.data.percentage,
+          grade: update.data.grade,
+        },
+      })
+    )
   );
 };
 
 const getAllResults = async (filters = {}) => {
+  await refreshStoredGrades();
+
   const {
     search,
     examId,
@@ -92,8 +167,6 @@ const getAllResults = async (filters = {}) => {
       ],
     };
   }
-
-  await refreshStoredGrades();
 
   const results = await prisma.result.findMany({
     where,
