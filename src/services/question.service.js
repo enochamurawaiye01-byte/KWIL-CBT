@@ -46,17 +46,10 @@ const LETTERS = ["A", "B", "C", "D"];
 
   const questions = payload.questions;
 
-  // 3. Validate totalQuestions
-  if (
-    payload.totalQuestions !== undefined &&
-    Number(payload.totalQuestions) !== questions.length
-  ) {
-    throw new Error(
-      `totalQuestions says ${payload.totalQuestions}, but ${questions.length} questions were provided`
-    );
-  }
+  // totalQuestions is not an import limit. Student sessions select 30
+  // questions when the exam starts, so all supplied questions are stored.
 
-  // 4. Validate each question
+  // 3. Validate each question
   const orders = new Set();
   let calculatedTotalMarks = 0;
 
@@ -117,17 +110,17 @@ const LETTERS = ["A", "B", "C", "D"];
     calculatedTotalMarks += marks;
   }
 
-  // 5. Validate totalMarks if supplied
-  if (
-    payload.totalMarks !== undefined &&
-    Number(payload.totalMarks) !== calculatedTotalMarks
-  ) {
-    throw new Error(
-      `totalMarks says ${payload.totalMarks}, but the questions add up to ${calculatedTotalMarks}`
-    );
+  // totalMarks is the score scale for the student exam. It does not need to
+  // equal the sum of marks in the larger question bank.
+  const examTotalMarks = payload.totalMarks === undefined
+    ? exam.totalMarks
+    : Number(payload.totalMarks);
+
+  if (!Number.isInteger(examTotalMarks) || examTotalMarks <= 0) {
+    throw new Error("totalMarks must be a positive whole number");
   }
 
-  // 6. Prepare database records
+  // 4. Prepare database records
   const questionRows = [];
   const optionRows = [];
 
@@ -154,7 +147,7 @@ const LETTERS = ["A", "B", "C", "D"];
     }
   }
 
-  // 7. Insert everything atomically
+  // 5. Insert everything atomically
   const result = await prisma.$transaction(async (tx) => {
     await tx.question.createMany({
       data: questionRows,
@@ -164,15 +157,12 @@ const LETTERS = ["A", "B", "C", "D"];
       data: optionRows,
     });
 
-    // IMPORTANT:
-    // Calculate totalMarks from the actual questions
-    // instead of blindly adding to the existing value.
     const updatedExam = await tx.exam.update({
       where: {
         id: examId,
       },
       data: {
-        totalMarks: calculatedTotalMarks,
+        totalMarks: examTotalMarks,
       },
     });
 
@@ -182,7 +172,7 @@ const LETTERS = ["A", "B", "C", "D"];
   return {
     examId: result.id,
     totalImported: questions.length,
-    totalMarks: calculatedTotalMarks,
+    totalMarks: examTotalMarks,
     failed: 0,
   };
 };

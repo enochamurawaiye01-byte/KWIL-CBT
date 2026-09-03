@@ -7,6 +7,7 @@ const registerStudent = async (req, res, next) => {
     return res.status(201).json({
       success: true,
       message: "Student registration successful",
+      registrationNumber: student.registrationNumber,
       data: student,
     });
   } catch (error) {

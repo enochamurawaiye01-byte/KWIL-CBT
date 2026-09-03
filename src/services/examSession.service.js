@@ -136,9 +136,6 @@ const getAvailableExams = async (studentId) => {
       attempt: session
         ? {
             status: session.status,
-            score: session.score,
-            percentage: session.percentage,
-            grade: session.grade,
           }
         : null,
     };
@@ -564,7 +561,7 @@ const submitExam = async (studentId, sessionId) => {
     ])
   );
 
-  let score = 0;
+  let rawScore = 0;
   let correctAnswers = 0;
   let answeredQuestions = 0;
 
@@ -585,20 +582,21 @@ const submitExam = async (studentId, sessionId) => {
 
     if (selectedOption && selectedOption.isCorrect) {
       correctAnswers++;
-      score += question.marks;
+      rawScore += question.marks;
     }
   }
 
   const totalQuestions = questions.length;
-  const totalMarks = questions.reduce(
+  const rawTotalMarks = questions.reduce(
     (total, question) => total + question.marks,
     0
   );
 
-  const percentage =
-    totalMarks > 0
-      ? Number(((score / totalMarks) * 100).toFixed(2))
-      : 0;
+  const totalMarks = 100;
+  const percentage = rawTotalMarks > 0
+    ? Number(((rawScore / rawTotalMarks) * 100).toFixed(2))
+    : 0;
+  const score = Math.round((percentage / 100) * totalMarks);
 
   // Grade calculation
   const grade = calculateGrade(percentage);

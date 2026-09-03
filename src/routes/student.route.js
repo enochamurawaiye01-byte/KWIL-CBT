@@ -74,9 +74,6 @@ router.get("/me", authenticate, async (req, res) => {
             expiresAt: true,
             submittedAt: true,
             status: true,
-            score: true,
-            percentage: true,
-            grade: true,
 
             exam: {
               select: {
@@ -102,47 +99,6 @@ router.get("/me", authenticate, async (req, res) => {
           },
         },
 
-        // Student's examination results
-        results: {
-          select: {
-            id: true,
-            totalQuestions: true,
-            answeredQuestions: true,
-            correctAnswers: true,
-            score: true,
-            totalMarks: true,
-            percentage: true,
-            grade: true,
-            status: true,
-            submittedAt: true,
-
-            exam: {
-              select: {
-                id: true,
-                title: true,
-
-                course: {
-                  select: {
-                    id: true,
-                    name: true,
-                    code: true,
-                  },
-                },
-              },
-            },
-          },
-        },
-
-        // Generated transcripts
-        transcripts: {
-          select: {
-            id: true,
-            fileUrl: true,
-            fileName: true,
-            generatedAt: true,
-            createdAt: true,
-          },
-        },
       },
     });
 
