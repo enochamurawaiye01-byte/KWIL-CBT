@@ -186,8 +186,44 @@ const loginAdmin = async ({ email, password }) => {
   };
 };
 
+const changeAdminPassword = async (userId, currentPassword, newPassword) => {
+  const admin = await prisma.user.findUnique({
+    where: { id: userId },
+  });
+
+  if (!admin || admin.role !== "ADMIN") {
+    const error = new Error("Admin account not found");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  const currentPasswordMatches = await bcrypt.compare(
+    currentPassword,
+    admin.passwordHash
+  );
+
+  if (!currentPasswordMatches) {
+    const error = new Error("Current password is incorrect");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  if (currentPassword === newPassword) {
+    const error = new Error("New password must be different from the current password");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const passwordHash = await bcrypt.hash(newPassword, 12);
+  await prisma.user.update({
+    where: { id: admin.id },
+    data: { passwordHash },
+  });
+};
+
 module.exports = {
   registerStudent,
   loginStudent,
-  loginAdmin
+  loginAdmin,
+  changeAdminPassword,
 };

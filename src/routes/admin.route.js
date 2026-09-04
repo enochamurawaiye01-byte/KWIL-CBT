@@ -13,6 +13,13 @@ router.get(
 	adminController.getDashboardStats
 );
 
+router.patch(
+	"/settings/password",
+	authenticate,
+	authorize("ADMIN"),
+	adminController.changePassword
+);
+
 router.get(
 	"/reports",
 	authenticate,
