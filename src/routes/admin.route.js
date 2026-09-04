@@ -14,6 +14,13 @@ router.get(
 );
 
 router.get(
+	"/reports",
+	authenticate,
+	authorize("ADMIN"),
+	adminController.getReports
+);
+
+router.get(
 	"/students",
 	authenticate,
 	authorize("ADMIN"),

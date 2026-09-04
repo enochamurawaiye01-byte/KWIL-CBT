@@ -1,5 +1,80 @@
 const prisma = require("../config/database");
 
+const getReports = async () => {
+  const [courses, exams, enrollments] = await Promise.all([
+    prisma.course.findMany({
+      select: {
+        id: true,
+        name: true,
+        code: true,
+        results: {
+          select: {
+            percentage: true,
+            status: true,
+          },
+        },
+      },
+      orderBy: { name: "asc" },
+    }),
+    prisma.exam.findMany({
+      select: {
+        id: true,
+        title: true,
+        status: true,
+        course: { select: { name: true } },
+        sessions: { select: { status: true } },
+        results: { select: { status: true } },
+      },
+      orderBy: { createdAt: "desc" },
+    }),
+    prisma.enrollment.findMany({
+      select: { enrolledAt: true },
+      orderBy: { enrolledAt: "asc" },
+    }),
+  ]);
+
+  const performanceByCourse = courses.map((course) => {
+    const resultCount = course.results.length;
+    const totalPercentage = course.results.reduce(
+      (total, result) => total + (Number(result.percentage) || 0),
+      0
+    );
+
+    return {
+      course: { id: course.id, name: course.name, code: course.code },
+      attempts: resultCount,
+      averageScore: resultCount ? Number((totalPercentage / resultCount).toFixed(2)) : 0,
+      passRate: resultCount
+        ? Number(((course.results.filter((result) => result.status === "PASS").length / resultCount) * 100).toFixed(2))
+        : 0,
+    };
+  });
+
+  const examSummary = exams.map((exam) => ({
+    exam: { id: exam.id, title: exam.title, course: exam.course },
+    status: exam.status,
+    completed: exam.sessions.filter((session) => ["SUBMITTED", "EXPIRED"].includes(session.status)).length,
+    passed: exam.results.filter((result) => result.status === "PASS").length,
+    failed: exam.results.filter((result) => result.status === "FAIL").length,
+  }));
+
+  const enrollmentByMonth = new Map();
+  for (const enrollment of enrollments) {
+    const date = new Date(enrollment.enrolledAt);
+    const month = date.toISOString().slice(0, 7);
+    enrollmentByMonth.set(month, (enrollmentByMonth.get(month) || 0) + 1);
+  }
+
+  return {
+    performanceByCourse,
+    examSummary,
+    enrollmentTrend: [...enrollmentByMonth.entries()].map(([month, enrollments]) => ({
+      month,
+      enrollments,
+    })),
+  };
+};
+
 const studentSelect = {
   id: true,
   fullName: true,
@@ -100,6 +175,7 @@ const getDashboardStats = async () => {
 };
 
 module.exports = {
+  getReports,
   getDashboardStats,
   getAllStudents,
   getStudentById,
