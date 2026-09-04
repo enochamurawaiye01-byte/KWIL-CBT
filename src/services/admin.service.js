@@ -7,10 +7,14 @@ const getReports = async () => {
         id: true,
         name: true,
         code: true,
-        results: {
+        exams: {
           select: {
-            percentage: true,
-            status: true,
+            results: {
+              select: {
+                percentage: true,
+                status: true,
+              },
+            },
           },
         },
       },
@@ -34,8 +38,9 @@ const getReports = async () => {
   ]);
 
   const performanceByCourse = courses.map((course) => {
-    const resultCount = course.results.length;
-    const totalPercentage = course.results.reduce(
+    const results = course.exams.flatMap((exam) => exam.results);
+    const resultCount = results.length;
+    const totalPercentage = results.reduce(
       (total, result) => total + (Number(result.percentage) || 0),
       0
     );
@@ -45,7 +50,7 @@ const getReports = async () => {
       attempts: resultCount,
       averageScore: resultCount ? Number((totalPercentage / resultCount).toFixed(2)) : 0,
       passRate: resultCount
-        ? Number(((course.results.filter((result) => result.status === "PASS").length / resultCount) * 100).toFixed(2))
+        ? Number(((results.filter((result) => result.status === "PASS").length / resultCount) * 100).toFixed(2))
         : 0,
     };
   });
