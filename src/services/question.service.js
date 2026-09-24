@@ -46,7 +46,7 @@ const LETTERS = ["A", "B", "C", "D"];
 
   const questions = payload.questions;
 
-  // totalQuestions is not an import limit. Student sessions select 30
+  // totalQuestions is not an import limit. Student sessions select 50
   // questions when the exam starts, so all supplied questions are stored.
 
   // 3. Validate each question
