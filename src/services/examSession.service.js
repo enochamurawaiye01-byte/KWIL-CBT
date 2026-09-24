@@ -1,8 +1,9 @@
 const prisma = require("../config/database");
 
 const QUESTIONS_PER_SESSION = 50;
-const EXAM_MARKS = 100;
-const TOTAL_MARKS = EXAM_MARKS;
+const EXAM_MARKS = 80;
+const ATTENDANCE_MARKS = 20;
+const TOTAL_MARKS = EXAM_MARKS + ATTENDANCE_MARKS;
 
 function getSessionQuestions(questions, sessionId) {
   let seed = 0;
@@ -597,7 +598,8 @@ const submitExam = async (studentId, sessionId) => {
   const questionPercentage = rawTotalMarks > 0
     ? rawScore / rawTotalMarks
     : 0;
-  const score = Math.round(questionPercentage * EXAM_MARKS);
+  const questionScore = questionPercentage * EXAM_MARKS;
+  const score = Math.round(ATTENDANCE_MARKS + questionScore);
   const totalMarks = TOTAL_MARKS;
   const percentage = Number(((score / totalMarks) * 100).toFixed(2));
 

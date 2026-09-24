@@ -4,8 +4,9 @@ const {
   getSessionQuestions,
 } = require("./examSession.service");
 
-const EXAM_MARKS = 100;
-const TOTAL_MARKS = EXAM_MARKS;
+const EXAM_MARKS = 80;
+const ATTENDANCE_MARKS = 20;
+const TOTAL_MARKS = EXAM_MARKS + ATTENDANCE_MARKS;
 
 const calculateHistoricalResult = (result) => {
   const questions = getSessionQuestions(result.session.exam.questions, result.sessionId);
@@ -31,7 +32,7 @@ const calculateHistoricalResult = (result) => {
 
   const rawTotalMarks = questions.reduce((total, question) => total + question.marks, 0);
   const questionPercentage = rawTotalMarks > 0 ? rawScore / rawTotalMarks : 0;
-  const score = Math.round(questionPercentage * EXAM_MARKS);
+  const score = Math.round(ATTENDANCE_MARKS + questionPercentage * EXAM_MARKS);
   const percentage = Number(((score / TOTAL_MARKS) * 100).toFixed(2));
   const grade = calculateGrade(percentage);
   const status = score >= result.session.exam.passMark ? "PASS" : "FAIL";
